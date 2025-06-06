@@ -1,0 +1,52 @@
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.db
+*.sqlite3
+*.log
+*.pot
+*.py[cod]
+
+# Django
+*.log
+*.pot
+*.pyc
+*.sqlite3
+db.sqlite3
+media
+static
+
+# Virtual Environment
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Dependency directories
+node_modules/
+
+# Coverage
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover
+
+# Pytest
+.cache
+
+# mypy
+.mypy_cache/
+
+# Pyre type checker
+.pyre/
+
+# Docker
+docker-compose.override.yml
