@@ -149,7 +149,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = [config('FRONTEND_URL')]
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGIN = [config('FRONTEND_URL')]
+CSRF_TRUSTED_ORIGIN = [config('FRONTEND_URL'), config('BACKEND_URL')]
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
