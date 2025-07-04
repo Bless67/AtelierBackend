@@ -204,6 +204,9 @@ class PayStackPaymentInitView(APIView):
             "email": customer_email,
             "amount": amount_kobo,
             "reference": tx_ref,
+            "metadata": {
+                "custom_fields": [{"display_name": "Customer Name", "variable_name": "customer_name", "value": customer_name}, {"display_name": "Customer Number", "variable_name": "customer_number", "value": customer_phone}]
+            },
             "callback_url": settings.PAYSTACK_CALLBACK_URL,
         }
 
