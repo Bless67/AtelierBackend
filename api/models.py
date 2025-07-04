@@ -24,7 +24,7 @@ class Product(models.Model):
 class ProductImage(models.Model):
     product = models.ForeignKey(
         Product, related_name='images', on_delete=models.CASCADE)
-    image = CloudinaryField("image")
+    image = models.ImageField(upload_to='product/', blank=True)
 
     # This is your generated square thumbnail
     thumbnail = ImageSpecField(
