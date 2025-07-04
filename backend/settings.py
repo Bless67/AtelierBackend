@@ -15,9 +15,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [config("BACKEND_URL")]
 
 
 # Application definition
@@ -149,8 +149,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = [config('FRONTEND_URL')]
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGIN = [config('FRONTEND_URL'),
-                       "https://yabuwatatelier.up.railway.app"]
+CSRF_TRUSTED_ORIGINS = [config('FRONTEND_URL'), config('BACKEND_URL')]
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
