@@ -9,5 +9,7 @@ urlpatterns = [
     path('verify-payment/<str:reference>',
          views.PayStackVerifyPaymentView.as_view()),
     path('check-orders', views.GuestOrderLookupView.as_view()),
-    path('customer-message/', views.CustomerMessageView.as_view())
+    path('customer-message/', views.CustomerMessageView.as_view()),
+    path("send-verification_code/", views.SendVerificationCodeView.as_view()),
+    path("verify-verification_code/", views.VerifyVerificationCodeView.as_view()),
 ]

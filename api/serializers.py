@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Product, Cart, CartItem, Order, OrderItem, ProductImage
+from .models import Product, Cart, CartItem, Order, OrderItem, ProductImage, CustomerMessage
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -13,7 +13,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "category", "images"]
+        fields = ["id", "name", 'original_price', "stock",
+                  "price", "category", "images"]
 
 
 class SingleProductSerializer(serializers.ModelSerializer):
@@ -21,7 +22,7 @@ class SingleProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "category",
+        fields = ["id", "name", "original_price", "price", "category",
                   "description", "stock", "images"]
 
 
@@ -64,3 +65,10 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = ['id', 'customer_name', 'customer_email', 'customer_phone',
                   'amount', 'transaction_id', 'status', 'created_at', 'items']
+
+
+class CustomerMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerMessage
+        fields = "__all__"
+        read_only_fields = ["id", "created_at"]

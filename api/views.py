@@ -5,13 +5,19 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import Cart, CartItem, Product, Order, OrderItem, CustomerMessage
-from .serializers import CartItemSerializer, ProductSerializer, SingleProductSerializer, SingleCartItemSerializer, OrderSerializer
+from .serializers import CartItemSerializer, ProductSerializer, SingleProductSerializer, SingleCartItemSerializer, CustomerMessageSerializer, OrderSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.conf import settings
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.core.mail import send_mail, BadHeaderError
+from django.core.exceptions import ImproperlyConfigured
+from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPRecipientsRefused, SMTPException
+from django_ratelimit.decorators import ratelimit
 import requests
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 import uuid
+import random
+from django.core.cache import cache
 
 
 class ProductView(APIView):
@@ -137,6 +143,7 @@ class SingleCartView(APIView):
 
 
 class PayStackPaymentInitView(APIView):
+
     def post(self, request):
         customer_name = request.data.get('customer_name')
         customer_email = request.data.get('customer_email')
@@ -148,6 +155,8 @@ class PayStackPaymentInitView(APIView):
 
         if not cart:
             return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
+        if not cache.get(f"email_verified_{customer_email}"):
+            return Response({"error": "Email not verified"}, status=403)
 
         tx_ref = f"tx-{uuid.uuid4().hex[:10]}"
         total_amount = 0
@@ -183,6 +192,7 @@ class PayStackPaymentInitView(APIView):
         except Product.DoesNotExist:
             order.delete()
             return Response({"error": "One or more products not found"}, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as e:
             order.delete()
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -201,6 +211,7 @@ class PayStackPaymentInitView(APIView):
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
         }
+
         try:
             response = requests.post(
                 f"{settings.PAYSTACK_BASE_URL}/transaction/initialize",
@@ -219,6 +230,7 @@ class PayStackPaymentInitView(APIView):
 
 
 class PayStackVerifyPaymentView(APIView):
+
     def get(self, request, reference):
         if not reference:
             return Response({"error": "No reference provided"}, status=status.HTTP_400_BAD_REQUEST)
@@ -230,33 +242,142 @@ class PayStackVerifyPaymentView(APIView):
         headers = {
             "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
         }
+
         verify_url = f"{settings.PAYSTACK_BASE_URL}/transaction/verify/{reference}"
         response = requests.get(verify_url, headers=headers)
 
         if response.status_code == 200:
             data = response.json()
             data_json = data.get('data')
+
             if data_json and data_json.get('status') == 'success':
                 try:
                     order = Order.objects.get(tx_ref=reference)
                     order.status = 'Paid'
                     order.transaction_id = data_json['id']
                     order.save()
-
+                    cache.delete(f"email_verified_{order.customer_email}")
                     # Clear user's cart
                     cart = Cart.objects.get(temporary_user=temporary_user)
                     cart.delete()
 
                     return Response({"message": "Payment successful"}, status=status.HTTP_200_OK)
+
                 except Order.DoesNotExist:
                     return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
                 except Cart.DoesNotExist:
                     return Response({"error": "Cart not found"}, status=status.HTTP_404_NOT_FOUND)
+
             else:
                 return Response({"error": "Payment was not successful"}, status=status.HTTP_400_BAD_REQUEST)
+
         else:
             print(response.json())
             return Response({"error": "Failed to verify payment"}, status=status.HTTP_400_BAD_REQUEST)
+
+# SEND verification_code
+
+
+class SendVerificationCodeView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required"}, status=400)
+
+        # Rate limiting
+        if cache.get(f"verification_code_cooldown_{email}"):
+            return Response({"error": "Try again after 1 minute."}, status=429)
+
+        verification_code = random.SystemRandom().randint(100000, 999999)
+        cache.set(f"verification_code_{email}", verification_code, timeout=300)
+        cache.set(f"verification_code_cooldown_{email}", True, timeout=60)
+
+        try:
+            # Test email configuration first
+            from django.core.mail import get_connection
+            connection = get_connection()
+            connection.open()
+            print("✅ Email connection successful")
+
+            subject = 'Your Yabuwat Atelier Verification Code'
+            from_email = settings.EMAIL_HOST_USER
+
+            html_content = f"""
+            <div style="font-family:Arial,sans-serif;max-width:500px;margin:auto;border:1px solid #ddd;padding:20px;">
+                <h2 style="color:#2c3e50;">Yabuwat Atelier</h2>
+                <p style="font-size:16px;">Hello,</p>
+                <p style="font-size:16px;">
+                    Your verification code is:
+                    <strong style="font-size:24px;color:#2980b9;">{verification_code}</strong>
+                </p>
+                <p style="font-size:14px;color:#555;">
+                    Please enter this code to complete your verification.
+                </p>
+                <p style="font-size:14px;color:#555;">
+                    If you didn't request this, please ignore this email.
+                </p>
+                <p style="font-size:14px;color:#999;">Thank you,<br>Yabuwat Atelier Team</p>
+            </div>
+            """
+
+            email_message = EmailMessage(
+                subject=subject,
+                body=html_content,
+                from_email=from_email,
+                to=[email],
+                connection=connection
+            )
+            email_message.content_subtype = "html"
+
+            # Send the email
+            result = email_message.send()
+            print(f"✅ Email send result: {result}")
+
+            connection.close()
+
+        except SMTPAuthenticationError as e:
+            print(f"❌ SMTP Authentication Error: {e}")
+            return Response({"error": "Email authentication failed. Check email credentials."}, status=500)
+        except SMTPRecipientsRefused as e:
+            print(f"❌ SMTP Recipients Refused: {e}")
+            return Response({"error": "Invalid recipient email address."}, status=400)
+        except SMTPConnectError as e:
+            print(f"❌ SMTP Connect Error: {e}")
+            return Response({"error": "Cannot connect to email server."}, status=500)
+        except SMTPException as e:
+            print(f"❌ SMTP Error: {e}")
+            return Response({"error": f"SMTP error: {str(e)}"}, status=500)
+        except BadHeaderError as e:
+            print(f"❌ Bad Header Error: {e}")
+            return Response({"error": "Invalid email header"}, status=400)
+        except ImproperlyConfigured as e:
+            print(f"❌ Improperly Configured: {e}")
+            return Response({"error": "Email not configured properly"}, status=500)
+        except Exception as e:
+            print(f"❌ General Error: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response({"error": f"Failed to send email: {str(e)}"}, status=500)
+
+        return Response({"message": "verification code sent."}, status=200)
+# VERIFY verification_code
+
+
+class VerifyVerificationCodeView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        entered_verification_code = request.data.get("verification_code")
+
+        if not email or not entered_verification_code:
+            return Response({"error": "Missing fields"}, status=400)
+
+        saved = cache.get(f"verification_code_{email}")
+        if str(saved) == str(entered_verification_code):
+            cache.set(f"email_verified_{email}", True, timeout=900)
+            cache.delete(f"verification_code_{email}")
+            return Response({"message": "Email verified"}, status=200)
+        return Response({"error": "Invalid verification code"}, status=400)
 
 
 class GuestOrderLookupView(APIView):
@@ -275,17 +396,15 @@ class GuestOrderLookupView(APIView):
 
 
 class CustomerMessageView(APIView):
-    def post(self, request):
-        name = request.data.get('name')
-        email = request.data.get('email')
-        message = request.data.get('message')
 
-        if name and email and message:
-            customer_message = CustomerMessage(
-                name=name, email=email, message=message)
-            customer_message.save()
-            return Response({'success': 'Message recieved successfully'}, status=status.HTTP_201_CREATED)
-        return Response({'error': 'Message not recieved'}, status=status.HTTP_400_BAD_REQUEST)
+    # @ratelimit(key="ip", rate="3/d", block=True)
+    def post(self, request):
+
+        serializer = CustomerMessageSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Message sent successfully"}, status=status.HTTP_201_CREATED)
+        return Response({"error": "Message not sent successfully"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 """class MergeCartView(APIView):
