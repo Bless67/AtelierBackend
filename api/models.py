@@ -24,15 +24,36 @@ class Product(models.Model):
 class ProductImage(models.Model):
     product = models.ForeignKey(
         Product, related_name='images', on_delete=models.CASCADE)
-    image = CloudinaryField('image')
+    image = CloudinaryField('image', help_text="Upload product image")
+    alt_text = models.CharField(
+        max_length=200, blank=True, help_text="Alternative text for accessibility")
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
 
-    # This is your generated square thumbnail
-    thumbnail = ImageSpecField(
-        source='image',
-        processors=[ResizeToFill(300, 300)],
-        format='JPEG',
-        options={'quality': 85}
-    )
+    def __str__(self):
+        return f"{self.product.name} - Image {self.id}"
+
+    @property
+    def thumbnail_url(self):
+        """Get thumbnail URL using Cloudinary transformations"""
+        if self.image:
+            return self.image.build_url(transformation=[
+                {'width': 300, 'height': 300, 'crop': 'fill'},
+                {'quality': 'auto'}
+            ])
+        return None
+
+    @property
+    def medium_url(self):
+        """Get medium size URL"""
+        if self.image:
+            return self.image.build_url(transformation=[
+                {'width': 600, 'height': 600, 'crop': 'limit'},
+                {'quality': 'auto'}
+            ])
+        return None
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 class Cart(models.Model):

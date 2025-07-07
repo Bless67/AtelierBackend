@@ -3,9 +3,14 @@ from .models import Product, Cart, CartItem, Order, OrderItem, ProductImage, Cus
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.ReadOnlyField(source='image.url')
+    thumbnail_url = serializers.ReadOnlyField()
+    medium_url = serializers.ReadOnlyField()
+
     class Meta:
         model = ProductImage
-        fields = ['id', 'image']
+        fields = ['id', 'image', 'image_url',
+                  'thumbnail_url', 'medium_url', 'alt_text']
 
 
 class ProductSerializer(serializers.ModelSerializer):
