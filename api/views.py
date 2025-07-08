@@ -50,7 +50,7 @@ class CartView(APIView):
         return cart
 
     def get(self, request):
-        temporary_user = request.COOKIES.get('temporary_user')
+        temporary_user = request.headers.get('X-Temporary-User')
         cart = self.get_cart(request, temporary_user)
 
         cart_items = CartItem.objects.filter(cart=cart)
@@ -59,7 +59,7 @@ class CartView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        temporary_user = request.COOKIES.get('temporary_user')
+        temporary_user = request.headers.get('X-Temporary-User')
         cart = self.get_cart(request, temporary_user)
 
         product_id = request.data.get('productId')
@@ -78,7 +78,7 @@ class CartView(APIView):
 
     def put(self, request):
 
-        temporary_user = request.COOKIES.get('temporary_user')
+        temporary_user = request.headers.get('X-Temporary-User')
         cart = self.get_cart(request, temporary_user)
 
         product_id = request.data.get('productId')
@@ -96,7 +96,7 @@ class CartView(APIView):
         return Response({'message': 'Cart item quantity updated'}, status=status.HTTP_200_OK)
 
     def delete(self, request):
-        temporary_user = request.COOKIES.get('temporary_user')
+        temporary_user = request.headers.get('X-Temporary-User')
         cart = self.get_cart(request, temporary_user)
 
         if cart is None:
@@ -129,7 +129,7 @@ class SingleCartView(APIView):
         return cart
 
     def get(self, request, id):
-        temporary_user = request.COOKIES.get('temporary_user')
+        temporary_user = request.headers.get('X-Temporary-User')
 
         try:
             cart = self.get_cart(request, temporary_user)
@@ -238,7 +238,7 @@ class PayStackVerifyPaymentView(APIView):
         if not reference:
             return Response({"error": "No reference provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        temporary_user = request.COOKIES.get('temporary_user')
+        temporary_user = request.headers.get('X-Temporary-User')
         if not temporary_user:
             return Response({"error": "Temporary user not identified"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -416,7 +416,7 @@ class CustomerMessageView(APIView):
         if not request.user.is_authenticated:
             return Response({"error": "User must be logged in to merge cart"}, status=status.HTTP_400_BAD_REQUEST)
 
-        temporary_user = request.COOKIES.get('temporary_user')
+        temporary_user = request.headers.get('X-Temporary-User')
         if not temporary_user:
             return Response({"error": "No temporary cart found"}, status=status.HTTP_400_BAD_REQUEST)
 
