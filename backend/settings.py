@@ -151,11 +151,12 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOWED_ORIGINS = [config('FRONTEND_URL')]
+# CORS_ALLOWED_ORIGINS = [config('FRONTEND_URL')]
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers)+["x-temporary-user",]
 CSRF_TRUSTED_ORIGINS = [config('FRONTEND_URL'), config(
-    'BACKEND_URL')]
+    'BACKEND_URL'),]
 # MEDIA_URL = 'media/'
 # MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
