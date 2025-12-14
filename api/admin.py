@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Cart, CartItem, Order, OrderItem, ProductImage, CustomerMessage
+from .models import Product, Cart, CartItem,  ProductImage, CustomerMessage
 from django.utils.html import format_html
 
 
@@ -68,6 +68,5 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 admin.site.register(Cart)
 admin.site.register(CartItem)
-admin.site.register(Order)
-admin.site.register(OrderItem)
+
 admin.site.register(CustomerMessage)

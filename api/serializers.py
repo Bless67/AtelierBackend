@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Product, Cart, CartItem, Order, OrderItem, ProductImage, CustomerMessage
+from .models import Product, Cart, CartItem,  ProductImage, CustomerMessage
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -53,23 +53,6 @@ class SingleCartItemSerializer(serializers.ModelSerializer):
 
 
 # serializers.py
-
-
-class OrderItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
-
-    class Meta:
-        model = OrderItem
-        fields = ['product', 'quantity']
-
-
-class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Order
-        fields = ['id', 'customer_name', 'customer_email', 'customer_phone',
-                  'amount', 'transaction_id', 'status', 'created_at', 'items']
 
 
 class CustomerMessageSerializer(serializers.ModelSerializer):
